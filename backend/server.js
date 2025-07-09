@@ -24,11 +24,14 @@ app.use('/api/auth', require('./routes/auth'));
 // MongoDB connection
 const connectDB = async () => {
   try {
-    const conn = await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/mernapp');
+    const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/chatsync';
+    console.log('Attempting to connect to MongoDB:', mongoUri);
+    const conn = await mongoose.connect(mongoUri);
     console.log(`MongoDB Connected: ${conn.connection.host}`);
   } catch (error) {
-    console.error('Database connection error:', error);
-    process.exit(1);
+    console.error('Database connection error:', error.message);
+    console.log('Server will continue running without database connection...');
+    console.log('Please ensure MongoDB is running or check your connection string.');
   }
 };
 

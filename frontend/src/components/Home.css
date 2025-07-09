@@ -1,12 +1,14 @@
 .home {
   min-height: calc(100vh - 80px);
+  width: 100%;
 }
 
 .hero-section {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
-  padding: 4rem 1rem;
+  padding: 4rem 2rem;
   text-align: center;
+  width: 100%;
 }
 
 .hero-content h1 {
@@ -62,13 +64,15 @@
 }
 
 .features-section {
-  padding: 4rem 1rem;
+  padding: 4rem 2rem;
   background-color: #f8f9fa;
+  width: 100%;
 }
 
-.container {
-  max-width: 1200px;
+.features-container {
+  max-width: 1400px;
   margin: 0 auto;
+  width: 100%;
 }
 
 .features-section h2 {
@@ -109,20 +113,37 @@
 }
 
 @media (max-width: 768px) {
+  .hero-section {
+    padding: 3rem 1rem;
+  }
+
+  .features-section {
+    padding: 3rem 1rem;
+  }
+
+  .nav-container {
+    padding: 0 1rem;
+  }
+
   .hero-content h1 {
     font-size: 2rem;
   }
-  
+
   .hero-content p {
     font-size: 1rem;
   }
-  
+
   .hero-buttons {
     flex-direction: column;
     align-items: center;
   }
-  
+
   .btn {
     width: 200px;
+  }
+
+  .features-grid {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
   }
 }

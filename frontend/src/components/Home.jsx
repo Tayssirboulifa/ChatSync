@@ -21,7 +21,7 @@ const Home = () => {
       </div>
       
       <div className="features-section">
-        <div className="container">
+        <div className="features-container">
           <h2>Features</h2>
           <div className="features-grid">
             <div className="feature-card">
