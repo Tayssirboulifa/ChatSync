@@ -7,9 +7,12 @@ A complete full-stack web application built with the MERN stack (MongoDB, Expres
 - **Frontend**: React with Vite for fast development
 - **Backend**: Express.js REST API
 - **Database**: MongoDB with Mongoose ODM
-- **Authentication**: JWT-based authentication
-- **Styling**: Modern CSS with responsive design
+- **Authentication**: Advanced JWT-based authentication with refresh tokens
+- **Security**: Rate limiting, password hashing with bcrypt, secure middleware
+- **Chat Features**: User status management, online/offline tracking
+- **Styling**: Modern responsive CSS with animations
 - **Development**: Hot reload for both frontend and backend
+- **API**: Comprehensive REST API with automatic token refresh
 
 ## 📁 Project Structure
 
@@ -19,12 +22,14 @@ mern-stack-app/
 │   ├── models/             # MongoDB models
 │   ├── routes/             # API routes
 │   ├── middleware/         # Custom middleware
+│   ├── utils/              # Utility functions (JWT, etc.)
 │   ├── .env               # Environment variables
 │   ├── server.js          # Main server file
 │   └── package.json       # Backend dependencies
 ├── frontend/               # React application
 │   ├── src/
 │   │   ├── components/    # React components
+│   │   ├── utils/         # Utility functions (API client, etc.)
 │   │   ├── App.jsx        # Main App component
 │   │   └── main.jsx       # Entry point
 │   ├── public/            # Static assets
@@ -105,6 +110,12 @@ npm run preview  # Preview production build
 
 - `POST /api/auth/register` - Register a new user
 - `POST /api/auth/login` - Login user
+- `POST /api/auth/logout` - Logout user
+- `POST /api/auth/logout-all` - Logout from all devices
+- `POST /api/auth/refresh` - Refresh access token
+- `GET /api/auth/me` - Get current user profile
+- `PUT /api/auth/status` - Update user status (online/offline/away)
+- `PUT /api/auth/profile` - Update user profile
 
 ### Request/Response Examples
 
