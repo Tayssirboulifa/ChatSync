@@ -76,6 +76,7 @@ apiClient.interceptors.response.use(
 
 // Auth API methods
 export const authAPI = {
+  // Authentication methods
   login: (credentials) => apiClient.post('/auth/login', credentials),
   register: (userData) => apiClient.post('/auth/register', userData),
   logout: (refreshToken) => apiClient.post('/auth/logout', { refreshToken }),
@@ -84,6 +85,36 @@ export const authAPI = {
   getMe: () => apiClient.get('/auth/me'),
   updateStatus: (status) => apiClient.put('/auth/status', { status }),
   updateProfile: (profileData) => apiClient.put('/auth/profile', profileData),
+
+  // Generic HTTP methods for authenticated requests
+  get: (url) => apiClient.get(url),
+  post: (url, data) => apiClient.post(url, data),
+  put: (url, data) => apiClient.put(url, data),
+  delete: (url) => apiClient.delete(url),
+};
+
+// Chat Room API methods
+export const chatRoomAPI = {
+  // Get all public chat rooms
+  getChatRooms: (params = {}) => {
+    const queryString = new URLSearchParams(params).toString();
+    return apiClient.get(`/chatrooms${queryString ? `?${queryString}` : ''}`);
+  },
+
+  // Get user's chat rooms
+  getMyRooms: () => apiClient.get('/chatrooms/my-rooms'),
+
+  // Get specific chat room
+  getChatRoom: (roomId) => apiClient.get(`/chatrooms/${roomId}`),
+
+  // Create new chat room
+  createChatRoom: (roomData) => apiClient.post('/chatrooms', roomData),
+
+  // Join a chat room
+  joinRoom: (roomId) => apiClient.post(`/chatrooms/${roomId}/join`),
+
+  // Leave a chat room
+  leaveRoom: (roomId) => apiClient.post(`/chatrooms/${roomId}/leave`),
 };
 
 // Chat API methods (for future use)
@@ -92,7 +123,7 @@ export const chatAPI = {
   getChat: (chatId) => apiClient.get(`/chats/${chatId}`),
   createChat: (chatData) => apiClient.post('/chats', chatData),
   sendMessage: (chatId, messageData) => apiClient.post(`/chats/${chatId}/messages`, messageData),
-  getMessages: (chatId, page = 1, limit = 50) => 
+  getMessages: (chatId, page = 1, limit = 50) =>
     apiClient.get(`/chats/${chatId}/messages?page=${page}&limit=${limit}`),
 };
 

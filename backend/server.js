@@ -2,11 +2,23 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const dotenv = require('dotenv');
+const http = require('http');
+const socketIo = require('socket.io');
 
 // Load environment variables
 dotenv.config();
 
 const app = express();
+const server = http.createServer(app);
+
+// Configure Socket.IO with CORS
+const io = socketIo(server, {
+  cors: {
+    origin: "http://localhost:5173",
+    methods: ["GET", "POST"],
+    credentials: true
+  }
+});
 
 // Middleware
 app.use(cors());
@@ -20,6 +32,7 @@ app.get('/', (req, res) => {
 
 // Import routes
 app.use('/api/auth', require('./routes/auth'));
+app.use('/api/chatrooms', require('./routes/chatRooms'));
 
 // MongoDB connection
 const connectDB = async () => {
@@ -51,6 +64,10 @@ app.use('*', (req, res) => {
 
 const PORT = process.env.PORT || 5000;
 
-app.listen(PORT, () => {
+// Socket.IO connection handling
+require('./utils/socketHandler')(io);
+
+server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
+  console.log(`Socket.IO server ready for connections`);
 });

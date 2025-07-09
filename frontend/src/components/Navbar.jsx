@@ -16,6 +16,9 @@ const Navbar = ({ user, logout }) => {
           
           {user ? (
             <>
+              <Link to="/chat-rooms" className="nav-link">
+                Chat Rooms
+              </Link>
               <Link to="/dashboard" className="nav-link">
                 Dashboard
               </Link>

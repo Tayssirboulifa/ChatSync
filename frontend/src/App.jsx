@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { authAPI } from './utils/axiosConfig';
+import { SocketProvider } from './context/SocketContext';
 import './App.css';
 
 // Components
@@ -9,10 +10,13 @@ import Home from './components/Home';
 import LoginForm from './components/LoginForm';
 import RegisterForm from './components/RegisterForm';
 import Dashboard from './components/Dashboard';
+import ChatRoomList from './components/ChatRoomList';
+import ChatRoom from './components/ChatRoom';
 
 function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [selectedRoom, setSelectedRoom] = useState(null);
 
   // Check if user is logged in on app start
   useEffect(() => {
@@ -65,7 +69,16 @@ function App() {
       localStorage.removeItem('accessToken');
       localStorage.removeItem('refreshToken');
       setUser(null);
+      setSelectedRoom(null);
     }
+  };
+
+  const handleRoomSelect = (room) => {
+    setSelectedRoom(room);
+  };
+
+  const handleLeaveRoom = () => {
+    setSelectedRoom(null);
   };
 
   // Protected Route Component
@@ -92,39 +105,53 @@ function App() {
 
   return (
     <Router>
-      <div className="App">
-        <Navbar user={user} logout={logout} />
-        <main className="main-content">
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route
-              path="/login"
-              element={
-                <PublicRoute>
-                  <LoginForm setUser={setUser} />
-                </PublicRoute>
-              }
-            />
-            <Route
-              path="/register"
-              element={
-                <PublicRoute>
-                  <RegisterForm setUser={setUser} />
-                </PublicRoute>
-              }
-            />
-            <Route
-              path="/dashboard"
-              element={
-                <ProtectedRoute>
-                  <Dashboard user={user} />
-                </ProtectedRoute>
-              }
-            />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </main>
-      </div>
+      <SocketProvider user={user}>
+        <div className="App">
+          <Navbar user={user} logout={logout} />
+          <main className="main-content">
+            <Routes>
+              <Route path="/" element={<Home />} />
+              <Route
+                path="/login"
+                element={
+                  <PublicRoute>
+                    <LoginForm setUser={setUser} />
+                  </PublicRoute>
+                }
+              />
+              <Route
+                path="/register"
+                element={
+                  <PublicRoute>
+                    <RegisterForm setUser={setUser} />
+                  </PublicRoute>
+                }
+              />
+              <Route
+                path="/dashboard"
+                element={
+                  <ProtectedRoute>
+                    <Dashboard user={user} />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/chat-rooms"
+                element={
+                  <ProtectedRoute>
+                    {selectedRoom ? (
+                      <ChatRoom room={selectedRoom} onLeaveRoom={handleLeaveRoom} />
+                    ) : (
+                      <ChatRoomList user={user} onRoomSelect={handleRoomSelect} />
+                    )}
+                  </ProtectedRoute>
+                }
+              />
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </main>
+        </div>
+      </SocketProvider>
     </Router>
   );
 }
