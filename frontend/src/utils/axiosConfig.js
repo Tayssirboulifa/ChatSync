@@ -117,6 +117,27 @@ export const chatRoomAPI = {
   leaveRoom: (roomId) => apiClient.post(`/chatrooms/${roomId}/leave`),
 };
 
+// Message API methods
+export const messageAPI = {
+  // Get messages for a chat room
+  getMessages: (roomId, params = {}) => {
+    const queryString = new URLSearchParams(params).toString();
+    return apiClient.get(`/messages/${roomId}${queryString ? `?${queryString}` : ''}`);
+  },
+
+  // Send a message to a chat room
+  sendMessage: (roomId, messageData) => apiClient.post(`/messages/${roomId}`, messageData),
+
+  // Edit a message
+  editMessage: (messageId, content) => apiClient.put(`/messages/${messageId}`, { content }),
+
+  // Delete a message
+  deleteMessage: (messageId) => apiClient.delete(`/messages/${messageId}`),
+
+  // Add reaction to a message
+  addReaction: (messageId, emoji) => apiClient.post(`/messages/${messageId}/react`, { emoji }),
+};
+
 // Chat API methods (for future use)
 export const chatAPI = {
   getChats: () => apiClient.get('/chats'),

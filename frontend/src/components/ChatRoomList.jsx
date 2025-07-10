@@ -98,7 +98,13 @@ const ChatRoomList = ({ user, onRoomSelect }) => {
   };
 
   const isUserMember = (room) => {
-    return room.members.some(member => member.user._id === user.id);
+    // Handle both user.id and user._id formats
+    const userId = user.id || user._id;
+    const isMember = room.members.some(member => {
+      const memberId = member.user._id || member.user.id;
+      return memberId === userId || memberId.toString() === userId.toString();
+    });
+    return isMember;
   };
 
   const formatLastActivity = (date) => {
@@ -115,39 +121,94 @@ const ChatRoomList = ({ user, onRoomSelect }) => {
     }
   };
 
-  const renderRoomCard = (room, showJoinLeave = true) => (
-    <div key={room._id} className="room-card">
-      <div className="room-header">
-        <div className="room-info">
-          <h3 className="room-name">{room.name}</h3>
-          <div className="room-meta">
-            <span className="room-type">{room.type}</span>
-            <span className="room-members">{room.memberCount} members</span>
-            <span className="room-active">{room.activeUserCount} online</span>
+  // Special render function for "My Rooms" that always shows Enter button
+  const renderMyRoomCard = (room) => {
+    return (
+      <div key={room._id} className="room-card">
+        <div className="room-header">
+          <div className="room-info">
+            <h3 className="room-name">{room.name}</h3>
+            <div className="room-meta">
+              <span className="room-type">{room.type}</span>
+              <span className="room-members">{room.memberCount} members</span>
+              <span className="room-active">{room.activeUserCount} online</span>
+            </div>
+          </div>
+          <div className="room-actions">
+            {/* Always show Enter button for My Rooms */}
+            <button
+              className="enter-room-button"
+              onClick={() => onRoomSelect && onRoomSelect(room)}
+            >
+              🚪 Enter Room
+            </button>
+            
+            {/* Show Leave button only if user is not the creator */}
+            {room.creator._id !== user.id && (
+              <button
+                className="leave-button"
+                onClick={() => handleLeaveRoom(room._id)}
+                disabled={joinLoading.has(room._id)}
+              >
+                {joinLoading.has(room._id) ? 'Leaving...' : 'Leave'}
+              </button>
+            )}
           </div>
         </div>
-        <div className="room-actions">
-          {showJoinLeave && (
-            <>
-              {isUserMember(room) ? (
-                <>
+        
+        {room.description && (
+          <p className="room-description">{room.description}</p>
+        )}
+        
+        <div className="room-footer">
+          <div className="room-creator">
+            Created by {room.creator.name}
+          </div>
+          <div className="room-activity">
+            {formatLastActivity(room.lastActivity)}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderRoomCard = (room, showJoinLeave = true, showEnterButton = true) => {
+    const userIsMember = isUserMember(room);
+    
+    return (
+      <div key={room._id} className="room-card">
+        <div className="room-header">
+          <div className="room-info">
+            <h3 className="room-name">{room.name}</h3>
+            <div className="room-meta">
+              <span className="room-type">{room.type}</span>
+              <span className="room-members">{room.memberCount} members</span>
+              <span className="room-active">{room.activeUserCount} online</span>
+            </div>
+          </div>
+          <div className="room-actions">
+            {userIsMember ? (
+              <>
+                {showEnterButton && (
                   <button
-                    className="join-button"
+                    className="enter-room-button"
                     onClick={() => onRoomSelect && onRoomSelect(room)}
                   >
-                    Enter
+                    🚪 Enter Room
                   </button>
-                  {room.creator._id !== user.id && (
-                    <button
-                      className="leave-button"
-                      onClick={() => handleLeaveRoom(room._id)}
-                      disabled={joinLoading.has(room._id)}
-                    >
-                      {joinLoading.has(room._id) ? 'Leaving...' : 'Leave'}
-                    </button>
-                  )}
-                </>
-              ) : (
+                )}
+                {showJoinLeave && room.creator._id !== user.id && (
+                  <button
+                    className="leave-button"
+                    onClick={() => handleLeaveRoom(room._id)}
+                    disabled={joinLoading.has(room._id)}
+                  >
+                    {joinLoading.has(room._id) ? 'Leaving...' : 'Leave'}
+                  </button>
+                )}
+              </>
+            ) : (
+              showJoinLeave && (
                 <button
                   className="join-button"
                   onClick={() => handleJoinRoom(room._id)}
@@ -155,26 +216,26 @@ const ChatRoomList = ({ user, onRoomSelect }) => {
                 >
                   {joinLoading.has(room._id) ? 'Joining...' : 'Join'}
                 </button>
-              )}
-            </>
-          )}
+              )
+            )}
+          </div>
+        </div>
+        
+        {room.description && (
+          <p className="room-description">{room.description}</p>
+        )}
+        
+        <div className="room-footer">
+          <div className="room-creator">
+            Created by {room.creator.name}
+          </div>
+          <div className="room-activity">
+            {formatLastActivity(room.lastActivity)}
+          </div>
         </div>
       </div>
-      
-      {room.description && (
-        <p className="room-description">{room.description}</p>
-      )}
-      
-      <div className="room-footer">
-        <div className="room-creator">
-          Created by {room.creator.name}
-        </div>
-        <div className="room-activity">
-          {formatLastActivity(room.lastActivity)}
-        </div>
-      </div>
-    </div>
-  );
+    );
+  };
 
   if (loading) {
     return (
@@ -241,7 +302,7 @@ const ChatRoomList = ({ user, onRoomSelect }) => {
           )
         ) : (
           myRooms.length > 0 ? (
-            myRooms.map(room => renderRoomCard(room, false))
+            myRooms.map(room => renderMyRoomCard(room))
           ) : (
             <div className="no-rooms">
               You haven't joined any rooms yet. Join a public room or create your own!

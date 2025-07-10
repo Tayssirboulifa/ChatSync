@@ -1,10 +1,12 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { authAPI } from './utils/axiosConfig';
+import { AuthProvider } from './context/AuthContext';
 import { SocketProvider } from './context/SocketContext';
 import './App.css';
 
 // Components
+import AppLayout from './components/Layout/AppLayout';
 import Navbar from './components/Navbar';
 import Home from './components/Home';
 import LoginForm from './components/LoginForm';
@@ -105,12 +107,19 @@ function App() {
 
   return (
     <Router>
-      <SocketProvider user={user}>
-        <div className="App">
-          <Navbar user={user} logout={logout} />
-          <main className="main-content">
+      <AuthProvider>
+        <SocketProvider user={user}>
+          <div className="App">
             <Routes>
-              <Route path="/" element={<Home />} />
+              {/* Public Routes - No Layout */}
+              <Route
+                path="/"
+                element={
+                  <PublicRoute>
+                    <Home />
+                  </PublicRoute>
+                }
+              />
               <Route
                 path="/login"
                 element={
@@ -127,11 +136,15 @@ function App() {
                   </PublicRoute>
                 }
               />
+
+              {/* Protected Routes - With Layout */}
               <Route
                 path="/dashboard"
                 element={
                   <ProtectedRoute>
-                    <Dashboard user={user} />
+                    <AppLayout user={user} onLogout={logout}>
+                      <Dashboard />
+                    </AppLayout>
                   </ProtectedRoute>
                 }
               />
@@ -139,19 +152,21 @@ function App() {
                 path="/chat-rooms"
                 element={
                   <ProtectedRoute>
-                    {selectedRoom ? (
-                      <ChatRoom room={selectedRoom} onLeaveRoom={handleLeaveRoom} />
-                    ) : (
-                      <ChatRoomList user={user} onRoomSelect={handleRoomSelect} />
-                    )}
+                    <AppLayout user={user} onLogout={logout}>
+                      {selectedRoom ? (
+                        <ChatRoom room={selectedRoom} onLeaveRoom={handleLeaveRoom} user={user} />
+                      ) : (
+                        <ChatRoomList user={user} onRoomSelect={handleRoomSelect} />
+                      )}
+                    </AppLayout>
                   </ProtectedRoute>
                 }
               />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
-          </main>
-        </div>
-      </SocketProvider>
+          </div>
+        </SocketProvider>
+      </AuthProvider>
     </Router>
   );
 }

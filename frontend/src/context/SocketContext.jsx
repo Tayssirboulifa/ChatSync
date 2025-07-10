@@ -16,6 +16,7 @@ export const SocketProvider = ({ children, user }) => {
   const [isConnected, setIsConnected] = useState(false);
   const [activeUsers, setActiveUsers] = useState({});
   const [currentRoom, setCurrentRoom] = useState(null);
+  const [joinedRooms, setJoinedRooms] = useState(new Set());
 
   // Get token from localStorage
   const getToken = () => localStorage.getItem('accessToken');
@@ -47,6 +48,14 @@ export const SocketProvider = ({ children, user }) => {
       newSocket.on('connect_error', (error) => {
         console.error('Connection error:', error);
         setIsConnected(false);
+      });
+
+      newSocket.on('error', (error) => {
+        console.error('Socket error:', error);
+        // Don't show join/leave errors to user as they're handled internally
+        if (!error.message.includes('Failed to join room') && !error.message.includes('Failed to leave room')) {
+          // Handle other errors
+        }
       });
 
       // Chat room event handlers
@@ -120,14 +129,34 @@ export const SocketProvider = ({ children, user }) => {
   }, [user]);
 
   const joinRoom = (roomId) => {
-    if (socket && isConnected) {
+    if (socket && isConnected && roomId) {
+      // Prevent multiple join calls for the same room
+      if (joinedRooms.has(roomId)) {
+        console.log('Already in room:', roomId);
+        return;
+      }
+
+      console.log('Joining room:', roomId);
       socket.emit('join-room', { roomId });
+      setJoinedRooms(prev => new Set([...prev, roomId]));
     }
   };
 
   const leaveRoom = (roomId) => {
-    if (socket && isConnected) {
+    if (socket && roomId) {
+      // Only leave if we're actually in the room
+      if (!joinedRooms.has(roomId)) {
+        console.log('Not in room:', roomId);
+        return;
+      }
+
+      console.log('Leaving room:', roomId);
       socket.emit('leave-room', { roomId });
+      setJoinedRooms(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(roomId);
+        return newSet;
+      });
     }
   };
 

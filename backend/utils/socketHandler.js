@@ -1,9 +1,11 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const ChatRoom = require('../models/ChatRoom');
+const Message = require('../models/Message');
 
-// Store active connections
+// Store active connections and rate limiting
 const activeConnections = new Map();
+const rateLimits = new Map(); // userId -> { joinRoom: timestamp, leaveRoom: timestamp }
 
 module.exports = (io) => {
   // Middleware for socket authentication
@@ -47,58 +49,51 @@ module.exports = (io) => {
     socket.on('join-room', async (data) => {
       try {
         const { roomId } = data;
-        
-        const chatRoom = await ChatRoom.findById(roomId);
-        if (!chatRoom || !chatRoom.isActive) {
-          socket.emit('error', { message: 'Chat room not found' });
+
+        if (!roomId) {
           return;
         }
 
-        // Check if user is a member
-        if (!chatRoom.isMember(socket.userId)) {
-          socket.emit('error', { message: 'You are not a member of this chat room' });
+        // Rate limiting - prevent spam requests
+        const now = Date.now();
+        const userLimits = rateLimits.get(socket.userId) || {};
+        if (userLimits.joinRoom && (now - userLimits.joinRoom) < 2000) {
+          return;
+        }
+        rateLimits.set(socket.userId, { ...userLimits, joinRoom: now });
+
+        console.log(`User ${socket.user.name} joining room ${roomId}`);
+
+        // Check if user is already in the room
+        const connection = activeConnections.get(socket.userId);
+        if (connection && connection.joinedRooms.has(roomId)) {
+          return;
+        }
+
+        // Simple room validation without database update
+        const chatRoom = await ChatRoom.findById(roomId);
+        if (!chatRoom || !chatRoom.isActive || !chatRoom.isMember(socket.userId)) {
+          socket.emit('error', { message: 'Cannot join room' });
           return;
         }
 
         // Join the socket room
         socket.join(roomId);
-        
-        // Add to active users in database
-        chatRoom.addActiveUser(socket.userId, socket.id);
-        await chatRoom.save();
 
-        // Update local tracking
-        const connection = activeConnections.get(socket.userId);
+        // Update local tracking only
         if (connection) {
           connection.joinedRooms.add(roomId);
         }
 
-        // Populate and get updated room data
-        await chatRoom.populate('activeUsers.user', 'name email avatar status');
-        
-        // Notify all users in the room about the new user
-        socket.to(roomId).emit('user-joined-room', {
-          roomId,
-          user: {
-            id: socket.user._id,
-            name: socket.user.name,
-            email: socket.user.email,
-            avatar: socket.user.avatar,
-            status: socket.user.status
-          },
-          activeUsers: chatRoom.activeUsers
-        });
-
-        // Send confirmation to the user
+        // Send simple confirmation
         socket.emit('joined-room', {
           roomId,
-          activeUsers: chatRoom.activeUsers
+          activeUsers: []
         });
 
         console.log(`User ${socket.user.name} joined room ${roomId}`);
       } catch (error) {
         console.error('Join room error:', error);
-        socket.emit('error', { message: 'Failed to join room' });
       }
     });
 
@@ -106,50 +101,96 @@ module.exports = (io) => {
     socket.on('leave-room', async (data) => {
       try {
         const { roomId } = data;
-        
-        // Leave the socket room
-        socket.leave(roomId);
-        
-        // Remove from active users in database
-        const chatRoom = await ChatRoom.findById(roomId);
-        if (chatRoom) {
-          chatRoom.removeActiveUser(socket.userId);
-          await chatRoom.save();
-          
-          // Update local tracking
-          const connection = activeConnections.get(socket.userId);
-          if (connection) {
-            connection.joinedRooms.delete(roomId);
-          }
 
-          // Populate updated room data
-          await chatRoom.populate('activeUsers.user', 'name email avatar status');
-          
-          // Notify other users in the room
-          socket.to(roomId).emit('user-left-room', {
-            roomId,
-            userId: socket.userId,
-            activeUsers: chatRoom.activeUsers
-          });
+        if (!roomId) {
+          return;
         }
 
+        // Rate limiting - prevent spam requests
+        const now = Date.now();
+        const userLimits = rateLimits.get(socket.userId) || {};
+        if (userLimits.leaveRoom && (now - userLimits.leaveRoom) < 2000) {
+          return;
+        }
+        rateLimits.set(socket.userId, { ...userLimits, leaveRoom: now });
+
+        console.log(`User ${socket.user.name} leaving room ${roomId}`);
+
+        // Check if user is actually in the room
+        const connection = activeConnections.get(socket.userId);
+        if (!connection || !connection.joinedRooms.has(roomId)) {
+          return;
+        }
+
+        // Leave the socket room
+        socket.leave(roomId);
+
+        // Update local tracking only
+        connection.joinedRooms.delete(roomId);
+
+        // Send simple confirmation
         socket.emit('left-room', { roomId });
+
         console.log(`User ${socket.user.name} left room ${roomId}`);
       } catch (error) {
         console.error('Leave room error:', error);
-        socket.emit('error', { message: 'Failed to leave room' });
       }
     });
 
-    // Handle sending messages (for future implementation)
+    // Handle sending messages
     socket.on('send-message', async (data) => {
       try {
-        const { roomId, message } = data;
-        
+        const { roomId, content, messageType = 'text', replyTo } = data;
+
         const chatRoom = await ChatRoom.findById(roomId);
         if (!chatRoom || !chatRoom.isMember(socket.userId)) {
           socket.emit('error', { message: 'Cannot send message to this room' });
           return;
+        }
+
+        // Validate message content
+        if (!content || content.trim().length === 0) {
+          socket.emit('error', { message: 'Message content cannot be empty' });
+          return;
+        }
+
+        if (content.length > 2000) {
+          socket.emit('error', { message: 'Message too long' });
+          return;
+        }
+
+        // Validate reply message if provided
+        if (replyTo) {
+          const replyMessage = await Message.findOne({
+            _id: replyTo,
+            chatRoom: roomId,
+            isDeleted: false
+          });
+
+          if (!replyMessage) {
+            socket.emit('error', { message: 'Reply message not found' });
+            return;
+          }
+        }
+
+        // Create and save message to database
+        const message = new Message({
+          content: content.trim(),
+          sender: socket.userId,
+          chatRoom: roomId,
+          messageType,
+          replyTo: replyTo || null,
+          metadata: {
+            platform: 'socket'
+          }
+        });
+
+        await message.save();
+
+        // Populate message for broadcasting
+        await message.populate('sender', 'name email avatar status');
+        if (replyTo) {
+          await message.populate('replyTo', 'content sender createdAt');
         }
 
         // Update last activity
@@ -158,22 +199,39 @@ module.exports = (io) => {
 
         // Broadcast message to all users in the room
         const messageData = {
-          id: Date.now(), // Temporary ID, replace with proper message ID when implementing messages
-          roomId,
+          _id: message._id,
+          content: message.content,
           sender: {
-            id: socket.user._id,
-            name: socket.user.name,
-            avatar: socket.user.avatar
+            _id: message.sender._id,
+            name: message.sender.name,
+            email: message.sender.email,
+            avatar: message.sender.avatar,
+            status: message.sender.status
           },
-          content: message,
-          timestamp: new Date()
+          chatRoom: roomId,
+          messageType: message.messageType,
+          replyTo: message.replyTo,
+          createdAt: message.createdAt,
+          updatedAt: message.updatedAt,
+          edited: message.edited,
+          reactions: message.reactions
         };
 
         io.to(roomId).emit('new-message', messageData);
+
+        // Send confirmation to sender
+        socket.emit('message-sent', {
+          tempId: data.tempId, // For client-side message tracking
+          message: messageData
+        });
+
         console.log(`Message sent in room ${roomId} by ${socket.user.name}`);
       } catch (error) {
         console.error('Send message error:', error);
-        socket.emit('error', { message: 'Failed to send message' });
+        socket.emit('error', {
+          message: 'Failed to send message',
+          tempId: data.tempId
+        });
       }
     });
 
@@ -198,7 +256,132 @@ module.exports = (io) => {
       }
     });
 
-    // Handle typing indicators (for future implementation)
+    // Handle message editing
+    socket.on('edit-message', async (data) => {
+      try {
+        const { messageId, content } = data;
+
+        const message = await Message.findOne({
+          _id: messageId,
+          sender: socket.userId,
+          isDeleted: false
+        }).populate('sender', 'name email avatar status');
+
+        if (!message) {
+          socket.emit('error', { message: 'Message not found or access denied' });
+          return;
+        }
+
+        // Check if message is not too old (15 minutes)
+        const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000);
+        if (message.createdAt < fifteenMinutesAgo) {
+          socket.emit('error', { message: 'Message is too old to edit' });
+          return;
+        }
+
+        // Edit the message
+        message.editMessage(content.trim());
+        await message.save();
+
+        // Broadcast the edit to all users in the room
+        io.to(message.chatRoom.toString()).emit('message-edited', {
+          messageId: message._id,
+          content: message.content,
+          edited: message.edited
+        });
+
+        console.log(`Message ${messageId} edited by ${socket.user.name}`);
+      } catch (error) {
+        console.error('Edit message error:', error);
+        socket.emit('error', { message: 'Failed to edit message' });
+      }
+    });
+
+    // Handle message deletion
+    socket.on('delete-message', async (data) => {
+      try {
+        const { messageId } = data;
+
+        const message = await Message.findOne({
+          _id: messageId,
+          isDeleted: false
+        }).populate('sender', 'name email avatar');
+
+        if (!message) {
+          socket.emit('error', { message: 'Message not found' });
+          return;
+        }
+
+        // Check if user is the sender or room admin
+        const chatRoom = await ChatRoom.findById(message.chatRoom);
+        const isRoomAdmin = chatRoom.isAdminOrModerator(socket.userId);
+        const isMessageSender = message.sender._id.toString() === socket.userId;
+
+        if (!isMessageSender && !isRoomAdmin) {
+          socket.emit('error', { message: 'You can only delete your own messages' });
+          return;
+        }
+
+        // Soft delete the message
+        message.softDelete(socket.userId);
+        await message.save();
+
+        // Broadcast the deletion to all users in the room
+        io.to(message.chatRoom.toString()).emit('message-deleted', {
+          messageId: message._id,
+          deletedBy: socket.userId
+        });
+
+        console.log(`Message ${messageId} deleted by ${socket.user.name}`);
+      } catch (error) {
+        console.error('Delete message error:', error);
+        socket.emit('error', { message: 'Failed to delete message' });
+      }
+    });
+
+    // Handle message reactions
+    socket.on('add-reaction', async (data) => {
+      try {
+        const { messageId, emoji } = data;
+
+        const message = await Message.findOne({
+          _id: messageId,
+          isDeleted: false
+        });
+
+        if (!message) {
+          socket.emit('error', { message: 'Message not found' });
+          return;
+        }
+
+        // Check if user is a member of the chat room
+        const chatRoom = await ChatRoom.findById(message.chatRoom);
+        if (!chatRoom.isMember(socket.userId)) {
+          socket.emit('error', { message: 'Access denied to this chat room' });
+          return;
+        }
+
+        // Add reaction
+        message.addReaction(socket.userId, emoji);
+        await message.save();
+
+        // Broadcast the reaction to all users in the room
+        io.to(message.chatRoom.toString()).emit('reaction-added', {
+          messageId: message._id,
+          userId: socket.userId,
+          userName: socket.user.name,
+          emoji,
+          reactions: message.reactionSummary
+        });
+
+        console.log(`Reaction ${emoji} added to message ${messageId} by ${socket.user.name}`);
+      } catch (error) {
+        console.error('Add reaction error:', error);
+        socket.emit('error', { message: 'Failed to add reaction' });
+      }
+    });
+
+    // Handle typing indicators
     socket.on('typing-start', (data) => {
       const { roomId } = data;
       socket.to(roomId).emit('user-typing', {
@@ -214,6 +397,46 @@ module.exports = (io) => {
         userId: socket.userId,
         roomId
       });
+    });
+
+    // Handle message read receipts
+    socket.on('mark-messages-read', async (data) => {
+      try {
+        const { roomId, messageIds } = data;
+
+        // Verify user is in the room
+        const chatRoom = await ChatRoom.findById(roomId);
+        if (!chatRoom || !chatRoom.isMember(socket.userId)) {
+          return;
+        }
+
+        // Mark messages as read
+        await Message.updateMany(
+          {
+            _id: { $in: messageIds },
+            chatRoom: roomId,
+            'readBy.user': { $ne: socket.userId }
+          },
+          {
+            $push: {
+              readBy: {
+                user: socket.userId,
+                readAt: new Date()
+              }
+            }
+          }
+        );
+
+        // Broadcast read receipts to other users in the room
+        socket.to(roomId).emit('messages-read', {
+          userId: socket.userId,
+          userName: socket.user.name,
+          messageIds
+        });
+
+      } catch (error) {
+        console.error('Mark messages read error:', error);
+      }
     });
 
     // Handle disconnection

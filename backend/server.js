@@ -14,14 +14,17 @@ const server = http.createServer(app);
 // Configure Socket.IO with CORS
 const io = socketIo(server, {
   cors: {
-    origin: "http://localhost:5173",
+    origin: ["http://localhost:5173", "http://localhost:5174"],
     methods: ["GET", "POST"],
     credentials: true
   }
 });
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: ["http://localhost:5173", "http://localhost:5174"],
+  credentials: true
+}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -33,6 +36,7 @@ app.get('/', (req, res) => {
 // Import routes
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/chatrooms', require('./routes/chatRooms'));
+app.use('/api/messages', require('./routes/messages'));
 
 // MongoDB connection
 const connectDB = async () => {

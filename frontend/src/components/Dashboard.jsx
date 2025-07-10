@@ -1,73 +1,66 @@
-import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import './Dashboard.css';
 
-const Dashboard = ({ user }) => {
+const Dashboard = () => {
+  const { user } = useAuth();
   const navigate = useNavigate();
 
-  useEffect(() => {
-    // Redirect to login if not authenticated
-    if (!user && !localStorage.getItem('token')) {
-      navigate('/login');
-    }
-  }, [user, navigate]);
-
-  if (!user && !localStorage.getItem('token')) {
-    return null;
-  }
-
   return (
-    <div className="dashboard">
+    <div className="simple-dashboard">
       <div className="dashboard-container">
-        <div className="dashboard-header">
-          <h1>Dashboard</h1>
-          <p>Welcome back, {user?.name || 'User'}!</p>
-        </div>
-        
-        <div className="dashboard-content">
-          <div className="stats-grid">
-            <div className="stat-card">
-              <h3>Profile</h3>
-              <div className="stat-info">
-                <p><strong>Name:</strong> {user?.name || 'N/A'}</p>
-                <p><strong>Email:</strong> {user?.email || 'N/A'}</p>
-                <p><strong>Role:</strong> {user?.role || 'user'}</p>
-              </div>
-            </div>
-            
-            <div className="stat-card">
-              <h3>Quick Actions</h3>
-              <div className="action-buttons">
-                <button className="action-btn">Update Profile</button>
-                <button className="action-btn">Settings</button>
-                <button className="action-btn">Help</button>
-              </div>
-            </div>
-            
-            <div className="stat-card">
-              <h3>Recent Activity</h3>
-              <div className="activity-list">
-                <p>No recent activity</p>
-              </div>
-            </div>
-            
-            <div className="stat-card">
-              <h3>System Status</h3>
-              <div className="status-info">
-                <div className="status-item">
-                  <span className="status-dot green"></span>
-                  <span>API Connected</span>
-                </div>
-                <div className="status-item">
-                  <span className="status-dot green"></span>
-                  <span>Database Online</span>
-                </div>
-                <div className="status-item">
-                  <span className="status-dot green"></span>
-                  <span>All Systems Operational</span>
-                </div>
-              </div>
-            </div>
+        <header className="dashboard-header">
+          <h1>Welcome back, {user?.name || 'User'}!</h1>
+          <p>Here's your ChatSync dashboard</p>
+        </header>
+
+        <div className="dashboard-cards">
+          <div className="dashboard-card">
+            <div className="card-icon">💬</div>
+            <h3>Chat Rooms</h3>
+            <p>Join conversations and connect with others</p>
+            <button
+              className="card-button"
+              onClick={() => navigate('/chat-rooms')}
+            >
+              Go to Chat Rooms
+            </button>
+          </div>
+
+          <div className="dashboard-card">
+            <div className="card-icon">👤</div>
+            <h3>Your Profile</h3>
+            <p>Manage your account and preferences</p>
+            <button
+              className="card-button"
+              onClick={() => navigate('/profile')}
+            >
+              View Profile
+            </button>
+          </div>
+
+          <div className="dashboard-card">
+            <div className="card-icon">📊</div>
+            <h3>Statistics</h3>
+            <p>View your activity and usage stats</p>
+            <button
+              className="card-button"
+              onClick={() => navigate('/stats')}
+            >
+              View Stats
+            </button>
+          </div>
+
+          <div className="dashboard-card">
+            <div className="card-icon">⚙️</div>
+            <h3>Settings</h3>
+            <p>Customize your ChatSync experience</p>
+            <button
+              className="card-button"
+              onClick={() => navigate('/settings')}
+            >
+              Open Settings
+            </button>
           </div>
         </div>
       </div>

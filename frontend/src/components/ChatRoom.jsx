@@ -1,127 +1,54 @@
 import { useState, useEffect, useRef } from 'react';
 import { useSocket } from '../context/SocketContext';
 import { authAPI } from '../utils/axiosConfig';
+import MessageList from './MessageList';
+import MessageForm from './MessageForm';
 import './ChatRoom.css';
 
-const ChatRoom = ({ room, onLeaveRoom }) => {
-  const [messages, setMessages] = useState([]);
-  const [newMessage, setNewMessage] = useState('');
+const ChatRoom = ({ room, onLeaveRoom, user }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [typingUsers, setTypingUsers] = useState([]);
-  const messagesEndRef = useRef(null);
-  const typingTimeoutRef = useRef(null);
+  const [replyTo, setReplyTo] = useState(null);
   
-  const { 
-    socket, 
-    isConnected, 
-    activeUsers, 
-    joinRoom, 
-    leaveRoom, 
-    sendMessage,
-    startTyping,
-    stopTyping
+  const {
+    socket,
+    isConnected,
+    activeUsers,
+    joinRoom,
+    leaveRoom
   } = useSocket();
 
-  const roomActiveUsers = activeUsers[room._id] || [];
+  // Get unique active users to prevent duplicate keys
+  const roomActiveUsers = (activeUsers[room._id] || []).filter((user, index, array) =>
+    array.findIndex(u => u.user._id === user.user._id) === index
+  );
 
   useEffect(() => {
     if (room && isConnected) {
+      console.log('ChatRoom: Joining room', room._id);
       joinRoom(room._id);
       setLoading(false);
     }
 
     return () => {
       if (room) {
+        console.log('ChatRoom: Leaving room', room._id);
         leaveRoom(room._id);
       }
     };
-  }, [room, isConnected, joinRoom, leaveRoom]);
-
-  useEffect(() => {
-    if (socket) {
-      // Listen for new messages
-      const handleNewMessage = (messageData) => {
-        if (messageData.roomId === room._id) {
-          setMessages(prev => [...prev, messageData]);
-        }
-      };
-
-      // Listen for typing indicators
-      const handleUserTyping = (data) => {
-        if (data.roomId === room._id) {
-          setTypingUsers(prev => {
-            if (!prev.find(user => user.userId === data.userId)) {
-              return [...prev, { userId: data.userId, userName: data.userName }];
-            }
-            return prev;
-          });
-        }
-      };
-
-      const handleUserStoppedTyping = (data) => {
-        if (data.roomId === room._id) {
-          setTypingUsers(prev => prev.filter(user => user.userId !== data.userId));
-        }
-      };
-
-      socket.on('new-message', handleNewMessage);
-      socket.on('user-typing', handleUserTyping);
-      socket.on('user-stopped-typing', handleUserStoppedTyping);
-
-      return () => {
-        socket.off('new-message', handleNewMessage);
-        socket.off('user-typing', handleUserTyping);
-        socket.off('user-stopped-typing', handleUserStoppedTyping);
-      };
-    }
-  }, [socket, room._id]);
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
-  const handleSendMessage = (e) => {
-    e.preventDefault();
-    
-    if (!newMessage.trim() || !isConnected) return;
-
-    sendMessage(room._id, newMessage.trim());
-    setNewMessage('');
-    
-    // Stop typing indicator
-    stopTyping(room._id);
-    if (typingTimeoutRef.current) {
-      clearTimeout(typingTimeoutRef.current);
-    }
-  };
-
-  const handleTyping = (e) => {
-    setNewMessage(e.target.value);
-
-    if (!isConnected) return;
-
-    // Start typing indicator
-    startTyping(room._id);
-
-    // Clear existing timeout
-    if (typingTimeoutRef.current) {
-      clearTimeout(typingTimeoutRef.current);
-    }
-
-    // Set timeout to stop typing indicator
-    typingTimeoutRef.current = setTimeout(() => {
-      stopTyping(room._id);
-    }, 1000);
-  };
+  }, [room?._id]);
 
   const handleLeaveRoom = () => {
     leaveRoom(room._id);
     onLeaveRoom();
+  };
+
+  const handleReply = (message) => {
+    setReplyTo(message);
+  };
+
+  const handleCancelReply = () => {
+    setReplyTo(null);
   };
 
   const getStatusColor = (status) => {
@@ -131,13 +58,6 @@ const ChatRoom = ({ room, onLeaveRoom }) => {
       case 'busy': return '#e74c3c';
       default: return '#95a5a6';
     }
-  };
-
-  const formatTime = (timestamp) => {
-    return new Date(timestamp).toLocaleTimeString([], { 
-      hour: '2-digit', 
-      minute: '2-digit' 
-    });
   };
 
   if (loading) {
@@ -215,76 +135,19 @@ const ChatRoom = ({ room, onLeaveRoom }) => {
           )}
 
           {/* Messages area */}
-          <div className="messages-container">
-            <div className="messages-list">
-              {messages.length === 0 ? (
-                <div className="no-messages">
-                  <h3>Welcome to {room.name}!</h3>
-                  <p>Start the conversation by sending a message.</p>
-                </div>
-              ) : (
-                messages.map((message) => (
-                  <div key={message.id} className="message">
-                    <div className="message-avatar">
-                      {message.sender.avatar ? (
-                        <img src={message.sender.avatar} alt={message.sender.name} />
-                      ) : (
-                        <div className="avatar-placeholder">
-                          {message.sender.name.charAt(0).toUpperCase()}
-                        </div>
-                      )}
-                    </div>
-                    <div className="message-content">
-                      <div className="message-header">
-                        <span className="sender-name">{message.sender.name}</span>
-                        <span className="message-time">{formatTime(message.timestamp)}</span>
-                      </div>
-                      <div className="message-text">{message.content}</div>
-                    </div>
-                  </div>
-                ))
-              )}
-              
-              {/* Typing indicators */}
-              {typingUsers.length > 0 && (
-                <div className="typing-indicator">
-                  <div className="typing-dots">
-                    <span></span>
-                    <span></span>
-                    <span></span>
-                  </div>
-                  <span className="typing-text">
-                    {typingUsers.map(user => user.userName).join(', ')} 
-                    {typingUsers.length === 1 ? ' is' : ' are'} typing...
-                  </span>
-                </div>
-              )}
-              
-              <div ref={messagesEndRef} />
-            </div>
-          </div>
+          <MessageList
+            roomId={room._id}
+            user={user}
+            onReply={handleReply}
+          />
 
           {/* Message input */}
-          <div className="message-input-container">
-            <form onSubmit={handleSendMessage} className="message-form">
-              <input
-                type="text"
-                value={newMessage}
-                onChange={handleTyping}
-                placeholder={isConnected ? "Type a message..." : "Connecting..."}
-                className="message-input"
-                disabled={!isConnected}
-                maxLength={1000}
-              />
-              <button 
-                type="submit" 
-                className="send-button"
-                disabled={!newMessage.trim() || !isConnected}
-              >
-                Send
-              </button>
-            </form>
-          </div>
+          <MessageForm
+            roomId={room._id}
+            replyTo={replyTo}
+            onCancelReply={handleCancelReply}
+            user={user}
+          />
         </div>
       </div>
     </div>
