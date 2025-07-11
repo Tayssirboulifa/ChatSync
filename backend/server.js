@@ -84,13 +84,24 @@ app.use('/api/messages', require('./routes/messages'));
 const connectDB = async () => {
   try {
     const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/chatsync';
-    console.log('Attempting to connect to MongoDB:', mongoUri);
-    const conn = await mongoose.connect(mongoUri);
+    console.log('Attempting to connect to MongoDB:', mongoUri.replace(/\/\/[^:]+:[^@]+@/, '//***:***@'));
+
+    const conn = await mongoose.connect(mongoUri, {
+      serverSelectionTimeoutMS: 30000, // 30 seconds
+      socketTimeoutMS: 45000, // 45 seconds
+      bufferMaxEntries: 0,
+      maxPoolSize: 10,
+      minPoolSize: 5,
+    });
+
     console.log(`MongoDB Connected: ${conn.connection.host}`);
   } catch (error) {
     console.error('Database connection error:', error.message);
     console.log('Server will continue running without database connection...');
     console.log('Please ensure MongoDB is running or check your connection string.');
+
+    // Retry connection after 5 seconds
+    setTimeout(connectDB, 5000);
   }
 };
 
