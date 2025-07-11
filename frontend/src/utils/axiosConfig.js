@@ -6,7 +6,7 @@ const API_BASE_URL = `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}
 // Create axios instance
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 10000,
+  timeout: 30000, // Increased to 30 seconds for Vercel cold starts
   headers: {
     'Content-Type': 'application/json',
   },

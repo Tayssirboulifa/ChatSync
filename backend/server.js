@@ -55,6 +55,26 @@ app.get('/', (req, res) => {
   res.json({ message: 'Welcome to MERN Stack API!' });
 });
 
+// Health check endpoint
+app.get('/api/health', async (req, res) => {
+  try {
+    // Check database connection
+    const dbState = mongoose.connection.readyState;
+    const dbStatus = dbState === 1 ? 'connected' : 'disconnected';
+
+    res.json({
+      status: 'ok',
+      database: dbStatus,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: 'error',
+      message: error.message
+    });
+  }
+});
+
 // Import routes
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/chatrooms', require('./routes/chatRooms'));
