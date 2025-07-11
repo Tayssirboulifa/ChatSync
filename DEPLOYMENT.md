@@ -1,6 +1,19 @@
-# 🚀 ChatSync Deployment Guide
+# 🚀 ChatSync Full-Stack Deployment Guide
 
-## Frontend Deployment to Vercel
+## Deploy Both Frontend & Backend from Same Repository
+
+### 📁 Repository Structure
+```
+ChatSync/
+├── frontend/          # React app (Vite)
+├── backend/           # Node.js/Express API
+├── package.json       # Root package.json
+└── DEPLOYMENT.md      # This guide
+```
+
+## 🎯 Two-Project Deployment Strategy
+
+### **Project 1: Frontend Deployment**
 
 ### Prerequisites
 - GitHub account with ChatSync repository
@@ -16,12 +29,11 @@
 
 ### Step 2: Deploy to Vercel
 
-#### Option A: Deploy via Vercel Dashboard (Recommended)
 1. **Go to [vercel.com](https://vercel.com) and sign in**
 2. **Click "New Project"**
 3. **Import your GitHub repository:**
    - Select "ChatSync" repository
-   - Choose the `frontend` folder as the root directory
+   - Project Name: `chatsync-frontend`
 4. **Configure build settings:**
    - Framework Preset: `Vite`
    - Root Directory: `frontend`
@@ -29,11 +41,32 @@
    - Output Directory: `dist`
 5. **Set Environment Variables:**
    ```
-   VITE_API_URL=https://your-backend-url.com
-   VITE_SOCKET_URL=https://your-backend-url.com
+   VITE_API_URL=https://chatsync-backend.vercel.app
+   VITE_SOCKET_URL=https://chatsync-backend.vercel.app
    VITE_NODE_ENV=production
    ```
 6. **Click "Deploy"**
+
+### **Project 2: Backend Deployment**
+
+1. **Click "New Project" again**
+2. **Import your GitHub repository again:**
+   - Select "ChatSync" repository
+   - Project Name: `chatsync-backend`
+3. **Configure build settings:**
+   - Framework Preset: `Other`
+   - Root Directory: `backend`
+   - Build Command: `npm install`
+   - Output Directory: (leave empty)
+4. **Set Environment Variables:**
+   ```
+   NODE_ENV=production
+   MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/chatsync
+   JWT_SECRET=your-super-secure-jwt-secret
+   JWT_REFRESH_SECRET=your-super-secure-refresh-secret
+   FRONTEND_URL=https://chatsync-frontend.vercel.app
+   ```
+5. **Click "Deploy"**
 
 #### Option B: Deploy via Vercel CLI
 ```bash

@@ -11,10 +11,17 @@ dotenv.config();
 const app = express();
 const server = http.createServer(app);
 
+// Configure allowed origins for CORS
+const allowedOrigins = [
+  "http://localhost:5173",
+  "http://localhost:5174",
+  process.env.FRONTEND_URL, // Add your Vercel frontend URL
+].filter(Boolean); // Remove undefined values
+
 // Configure Socket.IO with CORS
 const io = socketIo(server, {
   cors: {
-    origin: ["http://localhost:5173", "http://localhost:5174"],
+    origin: allowedOrigins,
     methods: ["GET", "POST"],
     credentials: true
   }
@@ -22,7 +29,7 @@ const io = socketIo(server, {
 
 // Middleware
 app.use(cors({
-  origin: ["http://localhost:5173", "http://localhost:5174"],
+  origin: allowedOrigins,
   credentials: true
 }));
 app.use(express.json());
