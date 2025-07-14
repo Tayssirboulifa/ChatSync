@@ -65,12 +65,32 @@ app.get('/api/health', async (req, res) => {
     res.json({
       status: 'ok',
       database: dbStatus,
+      mongoUri: process.env.MONGODB_URI ? 'set' : 'not set',
       timestamp: new Date().toISOString()
     });
   } catch (error) {
     res.status(500).json({
       status: 'error',
       message: error.message
+    });
+  }
+});
+
+// Test MongoDB connection endpoint
+app.get('/api/test-db', async (req, res) => {
+  try {
+    // Try to connect and perform a simple operation
+    const testResult = await mongoose.connection.db.admin().ping();
+    res.json({
+      status: 'success',
+      message: 'Database connection test successful',
+      result: testResult
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: 'error',
+      message: 'Database connection test failed',
+      error: error.message
     });
   }
 });
