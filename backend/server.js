@@ -97,6 +97,7 @@ app.get('/api/test-db', async (req, res) => {
 
 // Import routes
 app.use('/api/auth', require('./routes/auth'));
+app.use('/api/auth-temp', require('./routes/auth-temp')); // Temporary working auth
 app.use('/api/chatrooms', require('./routes/chatRooms'));
 app.use('/api/messages', require('./routes/messages'));
 

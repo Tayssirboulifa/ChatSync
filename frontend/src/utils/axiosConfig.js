@@ -76,13 +76,13 @@ apiClient.interceptors.response.use(
 
 // Auth API methods
 export const authAPI = {
-  // Authentication methods
-  login: (credentials) => apiClient.post('/auth/login', credentials),
-  register: (userData) => apiClient.post('/auth/register', userData),
+  // Authentication methods - using temporary endpoints that work without MongoDB
+  login: (credentials) => apiClient.post('/auth-temp/login', credentials),
+  register: (userData) => apiClient.post('/auth-temp/register', userData),
   logout: (refreshToken) => apiClient.post('/auth/logout', { refreshToken }),
   logoutAll: () => apiClient.post('/auth/logout-all'),
   refresh: (refreshToken) => apiClient.post('/auth/refresh', { refreshToken }),
-  getMe: () => apiClient.get('/auth/me'),
+  getMe: () => apiClient.get('/auth-temp/me'),
   updateStatus: (status) => apiClient.put('/auth/status', { status }),
   updateProfile: (profileData) => apiClient.put('/auth/profile', profileData),
 
